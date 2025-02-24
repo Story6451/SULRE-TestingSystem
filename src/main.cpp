@@ -39,8 +39,7 @@ boolean runFlag = true;
 //Load cell
 const int LOADCELL_DOUT_PIN = 2;
 const int LOADCELL_SCK_PIN = 3;
-float loadCell = 0;
-HX711 scale;
+HX711 LoadCell;
 
 //Pressure sensors
 Adafruit_INA219 ina219A;
@@ -176,7 +175,7 @@ void setup() {
   SetupSD();
 
   // Starting Load Cell 
-  scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
+  LoadCell.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
 
   Serial.println("Ended Setup");
 }
@@ -232,6 +231,90 @@ String FormatData()
   return reply;
 }
 
+void SendEthernet(String message)
+{
+    // Sending Ethernet Message
+    // send a reply to the IP address and port that sent us the packet we received
+    message.toCharArray(ReplyBuffer, message.length() + 1);
+    Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
+    Udp.write(ReplyBuffer);
+    Serial.println(ReplyBuffer);
+    Udp.endPacket();
+    
+}
+
+String RecieveEthernet()
+{
+  int packetSize = Udp.parsePacket();
+  if (packetSize) {
+    Serial.print("Received packet of size ");
+    Serial.println(packetSize);
+    Serial.print("From ");
+    IPAddress remote = Udp.remoteIP();
+    for (int i=0; i < 4; i++) {
+      Serial.print(remote[i], DEC);
+      if (i < 3) {
+        Serial.print(".");
+      }
+    }
+    Serial.print(", port ");
+    Serial.println(Udp.remotePort());
+
+    // read the packet into packetBufffer
+    Udp.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE);
+
+    String reply = String(packetBuffer);
+    return reply;
+    // Serial.println("Contents:");
+    // Serial.println(packetBuffer);
+
+  }
+}
+
+void ReadThermocouple()
+{
+  // switch temp sensor, wait to give enough time for each sensor to read properly
+  if ((lastRead - millis()) > READ_DELAY)
+  {
+    switch (currentTempSensor)
+    {
+    case 1:
+      digitalWrite(TEMP_1_PIN_1, HIGH);
+      digitalWrite(TEMP_1_PIN_2, HIGH);
+      digitalWrite(TEMP_2_PIN_1, LOW);
+      digitalWrite(TEMP_2_PIN_2, LOW);
+      data1.temp1 = tempsense.readCelsius();
+      break;
+    case 2:
+      digitalWrite(TEMP_2_PIN_1, HIGH);
+      digitalWrite(TEMP_2_PIN_2, HIGH);
+      digitalWrite(TEMP_1_PIN_1, LOW);
+      digitalWrite(TEMP_1_PIN_2, LOW);
+      data1.temp2 = tempsense.readCelsius();
+      break;
+    }
+    currentTempSensor++;
+    if (currentTempSensor == 3)
+    {
+      currentTempSensor = 1;
+    }
+    lastRead = millis();
+  }
+}
+
+void ReadPressureTransducer()
+{
+
+}
+
+void ReadLoadCell()
+{
+  if (LoadCell.is_ready())
+  {
+    data1.force = LoadCell.read();
+  }
+}
+
 void loop() {
   EthernetClient client = server.available();
   Serial.println("Looping");
@@ -240,70 +323,18 @@ void loop() {
     int incomingByte;
     digitalWrite(13, 1);
 
-    // switch temp sensor, wait to give enough time for each sensor to read properly
-    if ((lastRead - millis()) > READ_DELAY)
-    {
-      switch (currentTempSensor)
-      {
-      case 1:
-        digitalWrite(TEMP_1_PIN_1, HIGH);
-        digitalWrite(TEMP_1_PIN_2, HIGH);
-        digitalWrite(TEMP_2_PIN_1, LOW);
-        digitalWrite(TEMP_2_PIN_2, LOW);
-        data1.temp1 = tempsense.readCelsius();
-        break;
-      case 2:
-        digitalWrite(TEMP_2_PIN_1, HIGH);
-        digitalWrite(TEMP_2_PIN_2, HIGH);
-        digitalWrite(TEMP_1_PIN_1, LOW);
-        digitalWrite(TEMP_1_PIN_2, LOW);
-        data1.temp2 = tempsense.readCelsius();
-        break;
-      }
-      currentTempSensor++;
-      if (currentTempSensor == 3)
-      {
-        currentTempSensor = 1;
-      }
-      lastRead = millis();
-    }
-
-    // Format data packet
+    ReadThermocouple();
+    ReadPressureTransducer();
+    ReadLoadCell();
     
-    String stringReplyBuffer=FormatData();
 
+    String stringReplyBuffer=FormatData();
     Serial.print(stringReplyBuffer);
 
+    // SendEthernet(stringReplyBuffer);
 
-    // Sending Ethernet Message
-    stringReplyBuffer.toCharArray(ReplyBuffer, stringReplyBuffer.length() + 1);
-    int packetSize = Udp.parsePacket();
-    if (packetSize) {
-      Serial.print("Received packet of size ");
-      Serial.println(packetSize);
-      Serial.print("From ");
-      IPAddress remote = Udp.remoteIP();
-      for (int i=0; i < 4; i++) {
-        Serial.print(remote[i], DEC);
-        if (i < 3) {
-          Serial.print(".");
-        }
-      }
-      Serial.print(", port ");
-      Serial.println(Udp.remotePort());
-
-      // read the packet into packetBufffer
-      Udp.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE);
-      Serial.println("Contents:");
-      Serial.println(packetBuffer);
-
-      // send a reply to the IP address and port that sent us the packet we received
-    }
-    Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
-    Udp.write(ReplyBuffer);
-    Serial.println(ReplyBuffer);
-    Udp.endPacket();
-
+    // String response = RecieveEthernet();
+    
     //LogDataToFile(data1.temp1, data1.temp2, data1.)
 
     // Pause program if char 'c' is received
