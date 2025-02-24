@@ -8,20 +8,20 @@
 #include "NativeEthernet.h"
 #include "Servo.h"
 
+//ethernet
 byte mac[] = {0x04, 0xe9, 0xe5, 0x14, 0x8f, 0x36};
 IPAddress ip(192, 168, 1, 177);
-
 char packetBuffer[UDP_TX_PACKET_MAX_SIZE];
 char ReplyBuffer[68];
-
 uint16_t port = 2222;
-
 EthernetServer server(port);
 EthernetClient client;
 EthernetUDP Udp;
 
+//SD
 const int mchipSelect = BUILTIN_SDCARD;
 
+//Thermocouples
 const uint8_t TEMP_1_PIN_1 = 41;
 const uint8_t TEMP_1_PIN_2 = 12;
 const uint8_t TEMP_2_PIN_1 = 15;
@@ -33,48 +33,50 @@ const int8_t TEMP2_OFFSET = 0;
 uint8_t currentTempSensor = 1;
 
 DFRobot_MAX31855 tempsense;
+
 boolean runFlag = true;
 
-// HX711 circuit wiring
+//Load cell
 const int LOADCELL_DOUT_PIN = 2;
 const int LOADCELL_SCK_PIN = 3;
 float loadCell = 0;
-// Initialising Load Cell
 HX711 scale;
 
-// Initialising Pressure sensors
+//Pressure sensors
 Adafruit_INA219 ina219A;
 Adafruit_INA219 ina219B;
 Adafruit_INA219 ina219C;
 Adafruit_INA219 ina219D;
 
+
+//Generic
+uint64_t lastRead = 0;
+const uint8_t READ_DELAY = 200;
 typedef struct{
   float temp1 = 0;
   float temp2 = 0;
-  float temp3 = 0;
   float force = 0;
-  uint16_t pressure = 0;
+  uint16_t pressure1 = 0;
+  uint16_t pressure2 = 0;
+  uint16_t pressure3 = 0;
+  uint16_t pressure4 = 0;
 }data;
 
 data data1;
 
 // function to get mac address of teensy
-void teensyMAC(uint8_t *mac) {
+void TeensyMAC(uint8_t *mac) {
   for(uint8_t by=0; by<2; by++) mac[by]=(HW_OCOTP_MAC1 >> ((1-by)*8)) & 0xFF;
   for(uint8_t by=0; by<4; by++) mac[by+2]=(HW_OCOTP_MAC0 >> ((3-by)*8)) & 0xFF;
   Serial.printf("MAC: %02x:%02x:%02x:%02x:%02x:%02x\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 }
 
-void setup() {
+void SetupEthernet()
+{
+  TeensyMAC(mac);
 
-  Serial.begin(9600);
-  while (!Serial);
-  Serial.println("A");
-  // get teensy mac address
-  teensyMAC(mac);
-  // Starting Ethernet
   Ethernet.begin(mac, ip);
-
+  
   // check for Ethernet Hardware
   Serial.print("Ethernet Hardware Status: ");Serial.println(Ethernet.hardwareStatus());
   if (Ethernet.hardwareStatus() == EthernetNoHardware)
@@ -87,41 +89,24 @@ void setup() {
   if (Ethernet.linkStatus() == LinkOFF) {
     Serial.println("Ethernet cable is not connected.");
   }
-
+  
   Udp.begin(port);
 
+}
+
+void SetupThermocouple()
+{
+  
   pinMode(41, OUTPUT);
   pinMode(15, OUTPUT);
   pinMode(12, OUTPUT);
   pinMode(9, OUTPUT);
-  Serial.println("A");
+  
   tempsense.begin();
-  Serial.println("A");
-  // Starting Load Cell 
-  scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
+}
 
-  // Starting ina
-  if (! ina219A.begin()) {
-    Serial.println("Failed to find INA219A chip");
-    while (1) { delay(10); }
-  }
-  ina219A.setCalibration_32V_1A();
-  if (! ina219B.begin()) {
-    Serial.println("Failed to find INA219B chip");
-    while (1) { delay(10); }
-  }
-  ina219B.setCalibration_32V_1A();
-  if (! ina219C.begin()) {
-    Serial.println("Failed to find INA219C chip");
-    while (1) { delay(10); }
-  }
-  ina219C.setCalibration_32V_1A();
-  if (! ina219D.begin()) {
-    Serial.println("Failed to find INA219D chip");
-    while (1) { delay(10); }
-  }
-  ina219D.setCalibration_32V_1A();
-
+void SetupSD()
+{
   // Starting SD chip
   if (!SD.begin(mchipSelect))
   {
@@ -147,8 +132,55 @@ void setup() {
   File dataFile = SD.open(charFileName, FILE_WRITE);
   dataFile.println("ThermocoupleA,ThermocoupleB,PressureA,PressureB,LoadCell");
   dataFile.close();
+}
+
+void SetupCurrentSensor()
+{
+  // Starting ina
+  if (! ina219A.begin()) {
+    Serial.println("Failed to find INA219A chip");
+    while (1);
+  }
+  ina219A.setCalibration_32V_1A();
+  if (! ina219B.begin()) {
+    Serial.println("Failed to find INA219B chip");
+    while (1);
+  }
+  ina219B.setCalibration_32V_1A();
+  if (! ina219C.begin()) {
+    Serial.println("Failed to find INA219C chip");
+    while (1);
+  }
+  ina219C.setCalibration_32V_1A();
+  if (! ina219D.begin()) {
+    Serial.println("Failed to find INA219D chip");
+    while (1);
+  }
+  ina219D.setCalibration_32V_1A();
+}
+
+void setup() {
+
+  Serial.begin(9600);
+  while (!Serial);
+
+  Serial.println("Begun Setup...");
+  // gets teensy mac address
+  // Starting Ethernet
+  SetupEthernet();
+
+  SetupThermocouple();
+
+  SetupCurrentSensor();
+
+  SetupSD();
+
+  // Starting Load Cell 
+  scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
+
   Serial.println("Ended Setup");
 }
+
 void LogDataToFile(float TA, float TB, float PA, float PB, float PC, float PD, float L)
 {
   File dataFile = SD.open("datalog.csv", FILE_WRITE);
@@ -175,6 +207,31 @@ void LogDataToFile(float TA, float TB, float PA, float PB, float PC, float PD, f
   dataFile.close();
 }
 
+String FormatData()
+{
+  String reply = "TIME:";
+  reply += hour();
+  reply += ",";
+  reply += minute();
+  reply += ",";
+  reply += second();
+  reply += ",T1:";
+  reply += data1.temp1;
+  reply += ",T2:";
+  reply += data1.temp2;
+  reply += ",P1:";
+  reply += data1.pressure1;
+  reply += ",P2:";
+  reply += data1.pressure2;
+  reply += ",P3:";
+  reply += data1.pressure3;
+  reply += ",P4:";
+  reply += data1.pressure4;
+  reply += ",L1:";
+  reply += data1.force;
+  return reply;
+}
+
 void loop() {
   EthernetClient client = server.available();
   Serial.println("Looping");
@@ -183,75 +240,40 @@ void loop() {
     int incomingByte;
     digitalWrite(13, 1);
 
-    //Serial.println(currentTempSensor);
-    // Read Temperature
-
-    switch (currentTempSensor)
+    // switch temp sensor, wait to give enough time for each sensor to read properly
+    if ((lastRead - millis()) > READ_DELAY)
     {
-    case 1:
-      digitalWrite(TEMP_1_PIN_1, HIGH);
-      digitalWrite(TEMP_1_PIN_2, HIGH);
-      digitalWrite(TEMP_2_PIN_1, LOW);
-      digitalWrite(TEMP_2_PIN_2, LOW);
-      data1.temp1 = tempsense.readCelsius();
-      break;
-    case 2:
-      digitalWrite(TEMP_2_PIN_1, HIGH);
-      digitalWrite(TEMP_2_PIN_2, HIGH);
-      digitalWrite(TEMP_1_PIN_1, LOW);
-      digitalWrite(TEMP_1_PIN_2, LOW);
-      data1.temp2 = tempsense.readCelsius();
-      break;
+      switch (currentTempSensor)
+      {
+      case 1:
+        digitalWrite(TEMP_1_PIN_1, HIGH);
+        digitalWrite(TEMP_1_PIN_2, HIGH);
+        digitalWrite(TEMP_2_PIN_1, LOW);
+        digitalWrite(TEMP_2_PIN_2, LOW);
+        data1.temp1 = tempsense.readCelsius();
+        break;
+      case 2:
+        digitalWrite(TEMP_2_PIN_1, HIGH);
+        digitalWrite(TEMP_2_PIN_2, HIGH);
+        digitalWrite(TEMP_1_PIN_1, LOW);
+        digitalWrite(TEMP_1_PIN_2, LOW);
+        data1.temp2 = tempsense.readCelsius();
+        break;
+      }
+      currentTempSensor++;
+      if (currentTempSensor == 3)
+      {
+        currentTempSensor = 1;
+      }
+      lastRead = millis();
     }
-
-    delay(200);
-    currentTempSensor++;
-
-    if (currentTempSensor == 3)
-    {
-      currentTempSensor = 1;
-    }
-    String stringReplyBuffer = "TIME:";
 
     // Format data packet
-    stringReplyBuffer += hour();
-    stringReplyBuffer += ":";
-    stringReplyBuffer += minute();
-    stringReplyBuffer += ":";
-    stringReplyBuffer += second();
-    stringReplyBuffer += " - T1 = ";
-    stringReplyBuffer += data1.temp1;
-    stringReplyBuffer += " | T2 = ";
-    stringReplyBuffer += data1.temp2;
-    stringReplyBuffer += " | T3 = ";
-    stringReplyBuffer += data1.temp3;
-    stringReplyBuffer += " | FORCE = ";
-    stringReplyBuffer += data1.force;
-    stringReplyBuffer += " | P1 = ";
-    stringReplyBuffer += data1.pressure;
-    // Pring it all to Serial
+    
+    String stringReplyBuffer=FormatData();
+
     Serial.print(stringReplyBuffer);
-    // Serial.print(hour());
-    // Serial.print(":");
-    // Serial.print(minute());
-    // Serial.print(":");
-    // Serial.print(second());
-    // Serial.print(" - ");
-    // Serial.print("T1 = ");
-    // Serial.print(data1.temp1);
-    // Serial.print(" | ");
-    // Serial.print("T2 = ");
-    // Serial.print(data1.temp2);
-    // Serial.print(" | ");
-    // Serial.print("T3 = ");
-    // Serial.print(data1.temp3);
-    // Serial.print(" | ");
-    // Serial.print("FORCE = ");
-    // Serial.print(data1.force);
-    // Serial.print(" | ");
-    // Serial.print("P1 = ");
-    // Serial.print(data1.pressure);  
-    // Serial.println("");  
+
 
     // Sending Ethernet Message
     stringReplyBuffer.toCharArray(ReplyBuffer, stringReplyBuffer.length() + 1);
@@ -285,24 +307,24 @@ void loop() {
     //LogDataToFile(data1.temp1, data1.temp2, data1.)
 
     // Pause program if char 'c' is received
-    if (Serial.available() > 0) {
-      incomingByte = Serial.read();
-      Serial.print("UART received: ");
-      Serial.println(incomingByte, 16);
-      if (incomingByte == 0x63) runFlag = false;
-    }
+    // if (Serial.available() > 0) {
+    //   incomingByte = Serial.read();
+    //   Serial.print("UART received: ");
+    //   Serial.println(incomingByte, 16);
+    //   if (incomingByte == 0x63) runFlag = false;
+    // }
 
     //delay(500);
     digitalWrite(13,0);
   }
 
-  // Resume program if char 'c' is received
-  if (Serial.available() > 0) {
-    int incomingByte = Serial.read();
-    Serial.print("UART received: ");
-    Serial.println(incomingByte, 16);
-    if (incomingByte == 0x63) runFlag = true;
-  }
-  delay(500);
+  // // Resume program if char 'c' is received
+  // if (Serial.available() > 0) {
+  //   int incomingByte = Serial.read();
+  //   Serial.print("UART received: ");
+  //   Serial.println(incomingByte, 16);
+  //   if (incomingByte == 0x63) runFlag = true;
+  // }
+  //delay(500);
 
 }
