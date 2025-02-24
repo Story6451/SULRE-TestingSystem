@@ -39,6 +39,9 @@ boolean runFlag = true;
 //Load cell
 const int LOADCELL_DOUT_PIN = 2;
 const int LOADCELL_SCK_PIN = 3;
+const double CALIBRATION_WEIGHT = 2.2;//kg
+int64_t LoadcellOffset = 11145;
+int64_t LoadcellDivider = -8367;
 HX711 LoadCell;
 
 //Pressure sensors
@@ -158,6 +161,36 @@ void SetupCurrentSensor()
   ina219D.setCalibration_32V_1A();
 }
 
+void CalibrateLoadCell()
+{
+  Serial.println("Calibrating LoadCell...");
+  Serial.println("Remove all weight from the loadcell");
+  for (uint8_t i = 0; i < 6; i++)
+  {
+    delay(1000);
+    Serial.println(6 - i);
+  }
+  
+  LoadcellOffset = LoadCell.read_average(20);
+  Serial.println("Place the calibration weight on the loadcell (>1kg)");
+  for (uint8_t i = 0; i < 6; i++)
+  {
+    delay(1000);
+    Serial.println(6 - i);
+  }
+  LoadcellDivider = (LoadCell.read_average(20)-LoadcellOffset)/CALIBRATION_WEIGHT;
+
+  Serial.print("Loadcell offset = "); Serial.print(LoadcellOffset);
+  Serial.print("Loadcell divider = "); Serial.print(LoadcellDivider);
+  delay(10000);
+  Serial.println("Finished calibrating");
+}
+
+void SetupLoadCell()
+{
+  LoadCell.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
+}
+
 void setup() {
 
   Serial.begin(9600);
@@ -166,16 +199,17 @@ void setup() {
   Serial.println("Begun Setup...");
   // gets teensy mac address
   // Starting Ethernet
-  SetupEthernet();
+  //SetupEthernet();
 
   SetupThermocouple();
-
-  SetupCurrentSensor();
+  SetupLoadCell();
+  //CalibrateLoadCell();
+  LoadCell.tare();
+  //SetupCurrentSensor();
 
   SetupSD();
 
-  // Starting Load Cell 
-  LoadCell.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
+  
 
   Serial.println("Ended Setup");
 }
@@ -311,14 +345,14 @@ void ReadLoadCell()
 {
   if (LoadCell.is_ready())
   {
-    data1.force = LoadCell.read();
+    data1.force = (LoadCell.read() - LoadcellOffset)/LoadcellDivider;
   }
 }
 
 void loop() {
   EthernetClient client = server.available();
   Serial.println("Looping");
-
+  delay(500);
   while(runFlag == true){
     int incomingByte;
     digitalWrite(13, 1);
@@ -329,7 +363,7 @@ void loop() {
     
 
     String stringReplyBuffer=FormatData();
-    Serial.print(stringReplyBuffer);
+    Serial.println(stringReplyBuffer);
 
     // SendEthernet(stringReplyBuffer);
 
