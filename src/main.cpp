@@ -161,6 +161,7 @@ void SetupCurrentSensor()
   ina219D.setCalibration_32V_1A();
 }
 
+//only run the calibration once then comment out function call
 void CalibrateLoadCell()
 {
   Serial.println("Calibrating LoadCell...");
