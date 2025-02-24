@@ -1,6 +1,5 @@
 #include <Arduino.h>
 #include <DFRobot_MAX31855.h>
-#include <TimeLib.h>
 #include <Wire.h>
 #include <HX711.h>
 #include <Adafruit_INA219.h>
@@ -244,11 +243,7 @@ void LogDataToFile(float TA, float TB, float PA, float PB, float PC, float PD, f
 String FormatData()
 {
   String reply = "TIME:";
-  reply += hour();
-  reply += ",";
-  reply += minute();
-  reply += ",";
-  reply += second();
+  reply += millis();
   reply += ",T1:";
   reply += data1.temp1;
   reply += ",T2:";
