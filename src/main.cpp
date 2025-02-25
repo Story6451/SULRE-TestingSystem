@@ -44,9 +44,17 @@ int64_t LoadcellDivider = -8367;
 HX711 LoadCell;
 
 //Pressure sensors
+int64_t ina219AOffset = 0;
+int64_t ina219AScale = 1;
 Adafruit_INA219 ina219A;
+int64_t ina219BOffset = 0;
+int64_t ina219BScale = 1;
 Adafruit_INA219 ina219B;
+int64_t ina219COffset = 0;
+int64_t ina219CScale = 1;
 Adafruit_INA219 ina219C;
+int64_t ina219DOffset = 0;
+int64_t ina219DScale = 1;
 Adafruit_INA219 ina219D;
 
 
@@ -332,8 +340,22 @@ void ReadThermocouple()
   }
 }
 
+float CurrentToPressure(float current, uint64_t offset, uint64_t scale)
+{
+  return (current - offset)/scale;
+}
+
 void ReadPressureTransducer()
 {
+  float currentA = ina219A.getCurrent_mA();
+  float currentB = ina219B.getCurrent_mA();
+  float currentC = ina219C.getCurrent_mA();
+  float currentD = ina219D.getCurrent_mA();
+
+  float pressureA = CurrentToPressure(currentA, ina219AOffset, ina219AScale);
+  float pressureB = CurrentToPressure(currentB, ina219BOffset, ina219BScale);
+  float pressureC = CurrentToPressure(currentC, ina219COffset, ina219CScale);
+  float pressureD = CurrentToPressure(currentD, ina219DOffset, ina219DScale);
 
 }
 
