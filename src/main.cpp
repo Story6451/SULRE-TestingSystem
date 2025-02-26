@@ -48,8 +48,8 @@ Adafruit_INA219 ina219A;
 Adafruit_INA219 ina219B;
 Adafruit_INA219 ina219C;
 Adafruit_INA219 ina219D;
-int64_t ina219Offset = 0;
-int64_t ina219Scale = 1;
+float ina219intercept = -23.194;
+float ina219gradient = 6.116;
 
 
 //Generic
@@ -218,7 +218,7 @@ void setup() {
 
 void LogDataToFile(float TA, float TB, float PA, float PB, float PC, float PD, float L)
 {
-  File dataFile = SD.open(charFileName, FILE_WRITE);
+  File dataFile = SD.open("datalog.csv", FILE_WRITE);
   if (dataFile)
   {
     dataFile.print(String(TA));
@@ -334,10 +334,9 @@ void ReadThermocouple()
   }
 }
 
-float CurrentToPressure(float current, uint64_t offset, uint64_t scale)
+float CurrentToPressure(float current, float intercept, float grad)
 {
-
-  return (current - offset)/scale;
+  return current * grad + intercept;
 }
 
 void ReadPressureTransducer()
@@ -349,7 +348,7 @@ void ReadPressureTransducer()
   // float currentC = ina219C.getCurrent_mA();
   // float currentD = ina219D.getCurrent_mA();
 
-  data1.pressure1 = CurrentToPressure(currentA, ina219Offset, ina219Scale);
+  data1.pressure1 = CurrentToPressure(currentA, ina219intercept, ina219gradient);
   //Serial.print("A");Serial.println(currentA);
   // data1.pressure2 = CurrentToPressure(currentB, ina219BOffset, ina219BScale);
   // data1.pressure3 = CurrentToPressure(currentC, ina219COffset, ina219CScale);
