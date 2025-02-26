@@ -218,7 +218,7 @@ void setup() {
 
 void LogDataToFile(float TA, float TB, float PA, float PB, float PC, float PD, float L)
 {
-  File dataFile = SD.open("datalog.csv", FILE_WRITE);
+  File dataFile = SD.open(charFileName, FILE_WRITE);
   if (dataFile)
   {
     dataFile.print(String(TA));
@@ -379,7 +379,7 @@ void loop() {
     //Serial.println("B");
     ReadLoadCell();
     //Serial.println("C");
-    
+    LogDataToFile(data1.temp1, data1. temp2, data1.pressure1, data1.pressure2, data1.pressure3, data1.pressure4, data1.force);
 
     String stringReplyBuffer=FormatData();
     Serial.println(stringReplyBuffer);
