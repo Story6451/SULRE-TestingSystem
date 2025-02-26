@@ -65,10 +65,10 @@ typedef struct{
   float temp1 = 0;
   float temp2 = 0;
   float force = 0;
-  uint16_t pressure1 = 0;
-  uint16_t pressure2 = 0;
-  uint16_t pressure3 = 0;
-  uint16_t pressure4 = 0;
+  float pressure1 = 0;
+  float pressure2 = 0;
+  float pressure3 = 0;
+  float pressure4 = 0;
 }data;
 
 data data1;
@@ -151,21 +151,21 @@ void SetupCurrentSensor()
     while (1);
   }
   ina219A.setCalibration_32V_1A();
-  if (! ina219B.begin()) {
-    Serial.println("Failed to find INA219B chip");
-    while (1);
-  }
-  ina219B.setCalibration_32V_1A();
-  if (! ina219C.begin()) {
-    Serial.println("Failed to find INA219C chip");
-    while (1);
-  }
-  ina219C.setCalibration_32V_1A();
-  if (! ina219D.begin()) {
-    Serial.println("Failed to find INA219D chip");
-    while (1);
-  }
-  ina219D.setCalibration_32V_1A();
+  // if (! ina219B.begin()) {
+  //   Serial.println("Failed to find INA219B chip");
+  //   while (1);
+  // }
+  // ina219B.setCalibration_32V_1A();
+  // if (! ina219C.begin()) {
+  //   Serial.println("Failed to find INA219C chip");
+  //   while (1);
+  // }
+  // ina219C.setCalibration_32V_1A();
+  // if (! ina219D.begin()) {
+  //   Serial.println("Failed to find INA219D chip");
+  //   while (1);
+  // }
+  // ina219D.setCalibration_32V_1A();
 }
 
 //only run the calibration once then comment out function call
@@ -213,7 +213,7 @@ void setup() {
   SetupLoadCell();
   //CalibrateLoadCell();
   LoadCell.tare();
-  //SetupCurrentSensor();
+  SetupCurrentSensor();
 
   SetupSD();
 
@@ -342,20 +342,24 @@ void ReadThermocouple()
 
 float CurrentToPressure(float current, uint64_t offset, uint64_t scale)
 {
+
   return (current - offset)/scale;
 }
 
 void ReadPressureTransducer()
 {
-  float currentA = ina219A.getCurrent_mA();
-  float currentB = ina219B.getCurrent_mA();
-  float currentC = ina219C.getCurrent_mA();
-  float currentD = ina219D.getCurrent_mA();
+  //Serial.println("S");
+  float currentA = -1 * ina219A.getCurrent_mA();
+  //Serial.println("GotCurrent");
+  // float currentB = ina219B.getCurrent_mA();
+  // float currentC = ina219C.getCurrent_mA();
+  // float currentD = ina219D.getCurrent_mA();
 
-  float pressureA = CurrentToPressure(currentA, ina219AOffset, ina219AScale);
-  float pressureB = CurrentToPressure(currentB, ina219BOffset, ina219BScale);
-  float pressureC = CurrentToPressure(currentC, ina219COffset, ina219CScale);
-  float pressureD = CurrentToPressure(currentD, ina219DOffset, ina219DScale);
+  data1.pressure1 = CurrentToPressure(currentA, ina219AOffset, ina219AScale);
+  //Serial.print("A");Serial.println(currentA);
+  // data1.pressure2 = CurrentToPressure(currentB, ina219BOffset, ina219BScale);
+  // data1.pressure3 = CurrentToPressure(currentC, ina219COffset, ina219CScale);
+  // data1.pressure4 = CurrentToPressure(currentD, ina219DOffset, ina219DScale);
 
 }
 
@@ -369,15 +373,18 @@ void ReadLoadCell()
 
 void loop() {
   EthernetClient client = server.available();
-  Serial.println("Looping");
   delay(500);
   while(runFlag == true){
     int incomingByte;
+    //Serial.println("loop");
     digitalWrite(13, 1);
 
     ReadThermocouple();
+    //Serial.println("A");
     ReadPressureTransducer();
+    //Serial.println("B");
     ReadLoadCell();
+    //Serial.println("C");
     
 
     String stringReplyBuffer=FormatData();
@@ -389,25 +396,25 @@ void loop() {
     
     //LogDataToFile(data1.temp1, data1.temp2, data1.)
 
-    // Pause program if char 'c' is received
-    // if (Serial.available() > 0) {
-    //   incomingByte = Serial.read();
-    //   Serial.print("UART received: ");
-    //   Serial.println(incomingByte, 16);
-    //   if (incomingByte == 0x63) runFlag = false;
-    // }
+    //Pause program if char 'c' is received
+    if (Serial.available() > 0) {
+      incomingByte = Serial.read();
+      Serial.print("UART received: ");
+      Serial.println(incomingByte, 16);
+      if (incomingByte == 0x63) runFlag = false;
+    }
 
-    //delay(500);
+    delay(100);
     digitalWrite(13,0);
   }
 
   // // Resume program if char 'c' is received
-  // if (Serial.available() > 0) {
-  //   int incomingByte = Serial.read();
-  //   Serial.print("UART received: ");
-  //   Serial.println(incomingByte, 16);
-  //   if (incomingByte == 0x63) runFlag = true;
-  // }
-  //delay(500);
+   if (Serial.available() > 0) {
+     int incomingByte = Serial.read();
+     Serial.print("UART received: ");
+     Serial.println(incomingByte, 16);
+     if (incomingByte == 0x63) runFlag = true;
+   }
+  delay(100);
 
 }
