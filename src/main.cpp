@@ -34,18 +34,12 @@ int64_t LoadcellDivider = -8367;
 HX711 LoadCell;
 
 //Pressure sensors
-int64_t ina219AOffset = 0;
-int64_t ina219AScale = 1;
 Adafruit_INA219 ina219A;
-int64_t ina219BOffset = 0;
-int64_t ina219BScale = 1;
 Adafruit_INA219 ina219B;
-int64_t ina219COffset = 0;
-int64_t ina219CScale = 1;
 Adafruit_INA219 ina219C;
-int64_t ina219DOffset = 0;
-int64_t ina219DScale = 1;
 Adafruit_INA219 ina219D;
+float ina219intercept = -23.194;
+float ina219gradient = 6.116;
 
 // SD stuff
 uint8_t fileNum = 0;
@@ -264,10 +258,9 @@ void ReadThermocouple()
   }
 }
 
-float CurrentToPressure(float current, uint64_t offset, uint64_t scale)
+float CurrentToPressure(float current, float intercept, float grad)
 {
-
-  return (current - offset)/scale;
+  return current * grad + intercept;
 }
 
 void ReadPressureTransducer()
@@ -279,7 +272,7 @@ void ReadPressureTransducer()
   // float currentC = ina219C.getCurrent_mA();
   // float currentD = ina219D.getCurrent_mA();
 
-  data1.pressure1 = CurrentToPressure(currentA, ina219AOffset, ina219AScale);
+  data1.pressure1 = CurrentToPressure(currentA, ina219intercept, ina219gradient);
   //Serial.print("A");Serial.println(currentA);
   // data1.pressure2 = CurrentToPressure(currentB, ina219BOffset, ina219BScale);
   // data1.pressure3 = CurrentToPressure(currentC, ina219COffset, ina219CScale);
@@ -308,7 +301,7 @@ void loop() {
     //Serial.println("B");
     ReadLoadCell();
     //Serial.println("C");
-    
+    LogDataToFile(data1.temp1, data1. temp2, data1.pressure1, data1.pressure2, data1.pressure3, data1.pressure4, data1.force);
 
     String stringReplyBuffer=FormatData();
     Serial.println(stringReplyBuffer);
