@@ -4,8 +4,14 @@
 #include <HX711.h>
 #include <Adafruit_INA219.h>
 #include "SD.h"
-#include "NativeEthernet.h"
 #include "Servo.h"
+#include <SoftwareSerial.h>
+
+//RS-485
+const uint8_t RS_RO = 10;
+const uint8_t RS_DI = 11;
+const uint8_t RS_DE_RE = 12;
+SoftwareSerial RS_Slave(RS_RO, RS_DI);
 
 //SD
 const int mchipSelect = BUILTIN_SDCARD;
@@ -161,9 +167,11 @@ void setup() {
   while (!Serial);
 
   Serial.println("Begun Setup...");
-  // gets teensy mac address
-  // Starting Ethernet
-  //SetupEthernet();
+
+  RS_Slave.begin(9600);
+  pinMode(RS_DE_RE, OUTPUT);
+  digitalWrite(RS_DE_RE, LOW);
+  Serial.println("Started RS-485 Slave node");
 
   SetupThermocouple();
   SetupLoadCell();
@@ -296,6 +304,18 @@ void loop() {
     int incomingByte;
     //Serial.println("loop");
     digitalWrite(13, 1);
+
+    if (RS_Slave.available())
+    {
+      Serial.write(RS_Slave.read());
+
+      if (Serial.available())
+      {
+        digitalWrite(RS_DE_RE, HIGH);
+        RS_Slave.write(Serial.read());
+        digitalWrite(RS_DE_RE, LOW);
+      }
+    }
 
     ReadThermocouple();
     //Serial.println("A");
