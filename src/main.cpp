@@ -95,7 +95,7 @@ void SetupSD()
   }
   Serial.println(fileName);
   File dataFile = SD.open(charFileName, FILE_WRITE);
-  dataFile.println("ThermocoupleA,ThermocoupleB,PressureA,PressureB,LoadCell");
+  dataFile.println("Time,ThermocoupleA,ThermocoupleB,PressureA,PressureB,PressureC,PressureD,LoadCell");
   dataFile.close();
 }
 
@@ -178,13 +178,15 @@ void setup() {
   Serial.println("Ended Setup");
 }
 
-void LogDataToFile(float TA, float TB, float PA, float PB, float PC, float PD, float L)
+void LogDataToFile(uint64_t time, float TA, float TB, float PA, float PB, float PC, float PD, float L)
 {
   char charFileName[fileName.length()+1];
   fileName.toCharArray(charFileName, fileName.length()+1);
   File dataFile = SD.open(charFileName, FILE_WRITE);
   if (dataFile)
   {
+    dataFile.print(String(time));
+    dataFile.print(",");
     dataFile.print(String(TA));
     dataFile.print(",");
     dataFile.print(String(TB));
@@ -301,7 +303,7 @@ void loop() {
     //Serial.println("B");
     ReadLoadCell();
     //Serial.println("C");
-    LogDataToFile(data1.temp1, data1. temp2, data1.pressure1, data1.pressure2, data1.pressure3, data1.pressure4, data1.force);
+    LogDataToFile(millis(), data1.temp1, data1. temp2, data1.pressure1, data1.pressure2, data1.pressure3, data1.pressure4, data1.force);
 
     String stringReplyBuffer=FormatData();
     Serial.println(stringReplyBuffer);
