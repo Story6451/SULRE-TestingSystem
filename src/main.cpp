@@ -7,16 +7,6 @@
 #include "NativeEthernet.h"
 #include "Servo.h"
 
-//ethernet
-byte mac[] = {0x04, 0xe9, 0xe5, 0x14, 0x8f, 0x36};
-IPAddress ip(192, 168, 1, 177);
-char packetBuffer[UDP_TX_PACKET_MAX_SIZE];
-char ReplyBuffer[68];
-uint16_t port = 2222;
-EthernetServer server(port);
-EthernetClient client;
-EthernetUDP Udp;
-
 //SD
 const int mchipSelect = BUILTIN_SDCARD;
 
@@ -57,6 +47,9 @@ int64_t ina219DOffset = 0;
 int64_t ina219DScale = 1;
 Adafruit_INA219 ina219D;
 
+// SD stuff
+uint8_t fileNum = 0;
+String fileName = "datalog" + String(fileNum) + ".csv"; 
 
 //Generic
 uint64_t lastRead = 0;
@@ -73,35 +66,6 @@ typedef struct{
 
 data data1;
 
-// function to get mac address of teensy
-void TeensyMAC(uint8_t *mac) {
-  for(uint8_t by=0; by<2; by++) mac[by]=(HW_OCOTP_MAC1 >> ((1-by)*8)) & 0xFF;
-  for(uint8_t by=0; by<4; by++) mac[by+2]=(HW_OCOTP_MAC0 >> ((3-by)*8)) & 0xFF;
-  Serial.printf("MAC: %02x:%02x:%02x:%02x:%02x:%02x\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-}
-
-void SetupEthernet()
-{
-  TeensyMAC(mac);
-
-  Ethernet.begin(mac, ip);
-  
-  // check for Ethernet Hardware
-  Serial.print("Ethernet Hardware Status: ");Serial.println(Ethernet.hardwareStatus());
-  if (Ethernet.hardwareStatus() == EthernetNoHardware)
-  {
-    Serial.println("Ethernet hardware not found.  Sorry, can't run without hardware. :(");
-    //break do nothing
-    while (true);
-  }
-  Serial.print("Ethernet Link Status: ");Serial.println(Ethernet.linkStatus());
-  if (Ethernet.linkStatus() == LinkOFF) {
-    Serial.println("Ethernet cable is not connected.");
-  }
-  
-  Udp.begin(port);
-
-}
 
 void SetupThermocouple()
 {
@@ -126,8 +90,6 @@ void SetupSD()
     Serial.println("Note: press reset button on the board and reopen this Serial Monitor after fixing your issue!");
   }
   // Opening File and initialising it
-  uint8_t fileNum = 0;
-  String fileName = "datalog" + String(fileNum) + ".csv";
   char charFileName[fileName.length()+1];
   fileName.toCharArray(charFileName, fileName.length()+1);
 
@@ -224,7 +186,9 @@ void setup() {
 
 void LogDataToFile(float TA, float TB, float PA, float PB, float PC, float PD, float L)
 {
-  File dataFile = SD.open("datalog.csv", FILE_WRITE);
+  char charFileName[fileName.length()+1];
+  fileName.toCharArray(charFileName, fileName.length()+1);
+  File dataFile = SD.open(charFileName, FILE_WRITE);
   if (dataFile)
   {
     dataFile.print(String(TA));
@@ -267,46 +231,6 @@ String FormatData()
   reply += ",L1:";
   reply += data1.force;
   return reply;
-}
-
-void SendEthernet(String message)
-{
-    // Sending Ethernet Message
-    // send a reply to the IP address and port that sent us the packet we received
-    message.toCharArray(ReplyBuffer, message.length() + 1);
-    Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
-    Udp.write(ReplyBuffer);
-    Serial.println(ReplyBuffer);
-    Udp.endPacket();
-    
-}
-
-String RecieveEthernet()
-{
-  int packetSize = Udp.parsePacket();
-  if (packetSize) {
-    Serial.print("Received packet of size ");
-    Serial.println(packetSize);
-    Serial.print("From ");
-    IPAddress remote = Udp.remoteIP();
-    for (int i=0; i < 4; i++) {
-      Serial.print(remote[i], DEC);
-      if (i < 3) {
-        Serial.print(".");
-      }
-    }
-    Serial.print(", port ");
-    Serial.println(Udp.remotePort());
-
-    // read the packet into packetBufffer
-    Udp.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE);
-
-    String reply = String(packetBuffer);
-    return reply;
-    // Serial.println("Contents:");
-    // Serial.println(packetBuffer);
-
-  }
 }
 
 void ReadThermocouple()
@@ -372,7 +296,6 @@ void ReadLoadCell()
 }
 
 void loop() {
-  EthernetClient client = server.available();
   delay(500);
   while(runFlag == true){
     int incomingByte;
