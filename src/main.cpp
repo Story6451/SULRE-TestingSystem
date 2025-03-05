@@ -305,18 +305,6 @@ void loop() {
     //Serial.println("loop");
     digitalWrite(13, 1);
 
-    if (RS_Slave.available())
-    {
-      Serial.write(RS_Slave.read());
-
-      if (Serial.available())
-      {
-        digitalWrite(RS_DE_RE, HIGH);
-        RS_Slave.write(Serial.read());
-        digitalWrite(RS_DE_RE, LOW);
-      }
-    }
-
     ReadThermocouple();
     //Serial.println("A");
     ReadPressureTransducer();
@@ -328,11 +316,17 @@ void loop() {
     String stringReplyBuffer=FormatData();
     Serial.println(stringReplyBuffer);
 
-    // SendEthernet(stringReplyBuffer);
+    if (RS_Slave.available())
+    {
+      Serial.write(RS_Slave.read());
 
-    // String response = RecieveEthernet();
-    
-    //LogDataToFile(data1.temp1, data1.temp2, data1.)
+      if (Serial.available())
+      {
+        digitalWrite(RS_DE_RE, HIGH);
+        RS_Slave.write(Serial.read());
+        digitalWrite(RS_DE_RE, LOW);
+      }
+    }
 
     //Pause program if char 'c' is received
     if (Serial.available() > 0) {
