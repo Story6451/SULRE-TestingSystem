@@ -173,11 +173,11 @@ void setup() {
   digitalWrite(RS_DE_RE, LOW);
   Serial.println("Started RS-485 Slave node");
 
-  SetupThermocouple();
-  SetupLoadCell();
+  //SetupThermocouple();
+  //SetupLoadCell();
   //CalibrateLoadCell();
-  LoadCell.tare();
-  SetupCurrentSensor();
+  //LoadCell.tare();
+  //SetupCurrentSensor();
 
   SetupSD();
 
@@ -305,28 +305,36 @@ void loop() {
     //Serial.println("loop");
     digitalWrite(13, 1);
 
-    ReadThermocouple();
-    //Serial.println("A");
-    ReadPressureTransducer();
-    //Serial.println("B");
-    ReadLoadCell();
-    //Serial.println("C");
+    //ReadThermocouple();
+    //ReadPressureTransducer();
+    //ReadLoadCell();
+    data1.temp1 = 20 + sin(millis()/1000);
     LogDataToFile(millis(), data1.temp1, data1. temp2, data1.pressure1, data1.pressure2, data1.pressure3, data1.pressure4, data1.force);
 
     String stringReplyBuffer=FormatData();
-    Serial.println(stringReplyBuffer);
+    //Serial.println(stringReplyBuffer);
 
+    //Serial.println("A");
+    // digitalWrite(RS_DE_RE, HIGH);
+    // RS_Slave.write(Serial.read());
+    // digitalWrite(RS_DE_RE, LOW);
+
+    Serial.println(RS_Slave.available());
     if (RS_Slave.available())
     {
       Serial.write(RS_Slave.read());
-
-      if (Serial.available())
-      {
-        digitalWrite(RS_DE_RE, HIGH);
-        RS_Slave.write(Serial.read());
-        digitalWrite(RS_DE_RE, LOW);
-      }
     }
+    // if (RS_Slave.available())
+    // {
+    //   Serial.write(RS_Slave.read());
+
+    //   if (Serial.available())
+    //   {
+    //     digitalWrite(RS_DE_RE, HIGH);
+    //     RS_Slave.write(Serial.read());
+    //     digitalWrite(RS_DE_RE, LOW);
+    //   }
+    // }
 
     //Pause program if char 'c' is received
     if (Serial.available() > 0) {
