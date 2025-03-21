@@ -164,7 +164,7 @@ void SetupLoadCell()
 void setup() {
 
   Serial.begin(9600);
-  while (!Serial);
+  //while (!Serial);
 
   Serial.println("Begun Setup...");
 
@@ -318,7 +318,7 @@ void loop() {
     // digitalWrite(RS_DE_RE, HIGH);
     // RS_Slave.write(Serial.read());
     // digitalWrite(RS_DE_RE, LOW);
-
+    
     Serial.println(RS_Slave.available());
     if (RS_Slave.available())
     {
